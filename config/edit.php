@@ -1,82 +1,108 @@
 <?php
 require 'config.php';
 
-if (isset($_GET['id'])) {
-    $id = $_GET['id'];
-    $sql = "SELECT * FROM users WHERE id = $id";
-    $result = mysqli_query($mysqli, $sql);
-    $row = mysqli_fetch_assoc($result);
-}
+$id = $_GET['id'] ?? null;
+if (!$id) { header("Location: index.php"); exit(); }
+
+$sql = "SELECT u.*, uc.course_ID FROM User u 
+        JOIN User_Course uc ON u.user_ID = uc.user_ID 
+        WHERE u.user_ID = $id";
+$result = mysqli_query($mysqli, $sql);
+$row = mysqli_fetch_assoc($result);
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $id = $_POST['id'];
-    $fullname = mysqli_real_escape_string($mysqli, $_POST['fullname']);
-    $email = mysqli_real_escape_string($mysqli, $_POST['email']);
+    $firstname = mysqli_real_escape_string($mysqli, $_POST['firstname']);
+    $lastname = mysqli_real_escape_string($mysqli, $_POST['lastname']);
+    $middlename = mysqli_real_escape_string($mysqli, $_POST['middlename']);
+    $birthdate = mysqli_real_escape_string($mysqli, $_POST['birthdate']);
     $gender = mysqli_real_escape_string($mysqli, $_POST['gender']);
-    $course = mysqli_real_escape_string($mysqli, $_POST['course']);
+    $email = mysqli_real_escape_string($mysqli, $_POST['email']);
+    $course_id = mysqli_real_escape_string($mysqli, $_POST['course_id']);
 
-    $check_email = "SELECT id FROM users WHERE email = '$email' AND id != $id";
-    $check_result = mysqli_query($mysqli, $check_email);
-
-    if (mysqli_num_rows($check_result) > 0) {
-        echo "<script>alert('Error: Email already used by another student!'); window.history.back();</script>";
+    $check = mysqli_query($mysqli, "SELECT * FROM User WHERE Email = '$email' AND user_ID != $id");
+    if (mysqli_num_rows($check) > 0) {
+        echo "<script>alert('Error: Email is already used!'); window.history.back();</script>";
         exit();
-    } else {
-        $update_sql = "UPDATE users SET fullname='$fullname', email='$email', gender='$gender', course='$course' WHERE id=$id";
-        if (mysqli_query($mysqli, $update_sql)) {
-            header("Location: index.php");
-            exit();
-        } else {
-            echo "Error updating record: " . mysqli_error($mysqli);
-        }
     }
+
+    $sql_update = "UPDATE User SET Firstname='$firstname', Lastname='$lastname', Middlename='$middlename', 
+                   Birthdate='$birthdate', Gender='$gender', Email='$email' WHERE user_ID=$id";
+    mysqli_query($mysqli, $sql_update);
+
+    mysqli_query($mysqli, "DELETE FROM User_Course WHERE user_ID=$id");
+    mysqli_query($mysqli, "INSERT INTO User_Course (user_ID, course_ID) VALUES ('$id', '$course_id')");
+
+    header("Location: index.php");
+    exit();
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Edit Student</title>
+    <title>Edit Record</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .form-container { background-color: #ffffff; padding: 30px 40px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; }
-        .form-container h2 { text-align: center; color: #333; margin-bottom: 20px; }
-        label { font-weight: 600; color: #555; margin-bottom: 5px; display: block; font-size: 14px; }
-        input[type="text"], input[type="email"], select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px; transition: border-color 0.3s; }
-        input[type="text"]:focus, input[type="email"]:focus, select:focus { border-color: #f0ad4e; outline: none; }
-        button[type="submit"] { width: 100%; padding: 12px; background-color: #f0ad4e; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; margin-top: 10px; }
-        button[type="submit"]:hover { background-color: #ec971f; }
-        .cancel-link { display: block; text-align: center; margin-top: 15px; font-size: 14px; color: #d9534f; text-decoration: none; font-weight: bold; }
-        .cancel-link:hover { text-decoration: underline; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .form-container { background: white; padding: 30px 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { text-align: center; color: #2c3e50; margin-top: 0; margin-bottom: 20px;}
+        .row { display: flex; gap: 10px; }
+        .col { flex: 1; }
+        label { font-weight: 600; color: #495057; font-size: 13px; margin-bottom: 5px; display: block; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ced4da; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #f0ad4e; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px;}
+        button:hover { background-color: #ec971f; }
+        .back-link { display: block; text-align: center; margin-top: 15px; color: #6c757d; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="form-container">
-        <h2>Edit Student Details</h2>
-        <form action="edit.php" method="post" autocomplete="off">
-            <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
+        <h2>Edit Record</h2>
+        <form action="edit.php?id=<?php echo $id; ?>" method="post" autocomplete="off">
+            <div class="row">
+                <div class="col">
+                    <label>First Name</label>
+                    <input type="text" name="firstname" value="<?php echo htmlspecialchars($row['Firstname']); ?>" required>
+                </div>
+                <div class="col">
+                    <label>Last Name</label>
+                    <input type="text" name="lastname" value="<?php echo htmlspecialchars($row['Lastname']); ?>" required>
+                </div>
+            </div>
+            
+            <label>Middle Name</label>
+            <input type="text" name="middlename" value="<?php echo htmlspecialchars($row['Middlename']); ?>" required>
 
-            <label>Full Name</label>
-            <input type="text" name="fullname" value="<?php echo htmlspecialchars($row['fullname']); ?>" required>
+            <div class="row">
+                <div class="col">
+                    <label>Birthdate</label>
+                    <input type="date" name="birthdate" value="<?php echo $row['Birthdate']; ?>" required>
+                </div>
+                <div class="col">
+                    <label>Gender</label>
+                    <select name="gender" required>
+                        <option value="Male" <?php if($row['Gender'] == 'Male') echo 'selected'; ?>>Male</option>
+                        <option value="Female" <?php if($row['Gender'] == 'Female') echo 'selected'; ?>>Female</option>
+                    </select>
+                </div>
+            </div>
 
-            <label>Email Address</label>
-            <input type="email" name="email" value="<?php echo htmlspecialchars($row['email']); ?>" required>
+            <label>Email (Must be unique)</label>
+            <input type="email" name="email" value="<?php echo htmlspecialchars($row['Email']); ?>" required>
 
-            <label>Gender</label>
-            <select name="gender" required>
-                <option value="Male" <?php if($row['gender'] == 'Male') echo 'selected'; ?>>Male</option>
-                <option value="Female" <?php if($row['gender'] == 'Female') echo 'selected'; ?>>Female</option>
+            <label>Select Course</label>
+            <select name="course_id" required>
+                <?php
+                $courses = mysqli_query($mysqli, "SELECT * FROM Course WHERE status = 'on'");
+                while($c = mysqli_fetch_assoc($courses)) {
+                    $selected = ($c['Course_ID'] == $row['course_ID']) ? 'selected' : '';
+                    echo "<option value='{$c['Course_ID']}' $selected>{$c['course_code']} - {$c['name']}</option>";
+                }
+                ?>
             </select>
 
-            <label>Course</label>
-            <select name="course" required>
-                <option value="BSIT" <?php if($row['course'] == 'BSIT') echo 'selected'; ?>>BSIT</option>
-                <option value="BSMATH" <?php if($row['course'] == 'BSMATH') echo 'selected'; ?>>BSMATH</option>
-            </select>
-
-            <button type="submit">Update Student</button>
+            <button type="submit">Update Record</button>
         </form>
-        <a href="index.php" class="cancel-link">Cancel and Go Back</a>
+        <a href="index.php" class="back-link">&larr; Back to Dashboard</a>
     </div>
 </body>
 </html>
